@@ -1,0 +1,8 @@
+.DS_Store
+# 秘密の値・設定・自分の資料はコミットしない
+slide-viewer/private/secret.key
+slide-viewer/private/config.php
+slide-viewer/private/decks/
+slide-viewer/private/rate/
+demo/secret.key
+demo/rate/

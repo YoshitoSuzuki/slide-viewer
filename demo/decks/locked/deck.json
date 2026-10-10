@@ -1,0 +1,11 @@
+{
+  "title": "4:3 のサンプル",
+  "pages": 5,
+  "width": 1600,
+  "height": 1200,
+  "download": false,
+  "scramble": {
+    "seed": 2487080038,
+    "tile": 80
+  }
+}

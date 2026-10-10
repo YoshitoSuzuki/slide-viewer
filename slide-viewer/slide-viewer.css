@@ -1,0 +1,402 @@
+@charset "UTF-8";
+
+/*
+ * slide-viewer のスタイル
+ * 載せる側のページの CSS と干渉しないよう、すべて .sv-root の中だけに効かせる。
+ * 色は --sv-* の変数で上書きできる（例: .slide-viewer { --sv-accent: #ff9500; }）
+ */
+
+.sv-root {
+  --sv-accent: #0071e3;
+  --sv-accent-soft: rgba(0, 113, 227, 0.1);
+  --sv-surface: #ffffff;
+  --sv-surface-2: #fafafc;
+  --sv-stage: #ffffff;
+  --sv-text: #1d1d1f;
+  --sv-muted: #6e6e73;
+  --sv-faint: #8e8e93;
+  --sv-border: rgba(0, 0, 0, 0.08);
+  --sv-track: #ececf0;
+  --sv-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  --sv-radius: 14px;
+  --sv-ratio: 16 / 9;
+
+  /* 外側の余白（margin）は載せる側のページが決めるので、ここでは触らない */
+  display: block;
+  padding: 0;
+  color: var(--sv-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: left;
+  outline: none;
+  container: sv / inline-size;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sv-root {
+    --sv-accent: #4d9dff;
+    --sv-accent-soft: rgba(77, 157, 255, 0.16);
+    --sv-surface: #16161a;
+    --sv-surface-2: #1c1c21;
+    --sv-text: #f5f5f7;
+    --sv-muted: #a1a1a9;
+    --sv-faint: #85858f;
+    --sv-border: rgba(255, 255, 255, 0.1);
+    --sv-track: rgba(255, 255, 255, 0.1);
+    --sv-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.sv-root *,
+.sv-root *::before,
+.sv-root *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.sv-root canvas,
+.sv-root svg {
+  border: 0;
+  outline: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  max-width: none;
+  max-height: none;
+  vertical-align: top;
+}
+
+.sv-root:focus-visible .sv-card {
+  outline: 2px solid var(--sv-accent);
+  outline-offset: 2px;
+}
+
+.sv-root [hidden] {
+  display: none !important;
+}
+
+/* タイトル行 */
+.sv-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sv-title {
+  font-size: 17px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-count {
+  flex: none;
+  font-size: 13px;
+  color: var(--sv-muted);
+}
+
+/* 本体 */
+.sv-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius);
+  box-shadow: var(--sv-shadow);
+  overflow: hidden;
+}
+
+.sv-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--sv-ratio);
+  background: var(--sv-stage);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.sv-canvas {
+  /* 重ねて置く。中に置くと canvas の実寸（解像度ぶん大きい）でステージが押し広げられ、
+     リサイズ → 再描画 → さらに広がる、をくり返す */
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sv-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 3px solid rgba(128, 128, 128, 0.25);
+  border-top-color: var(--sv-accent);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.sv-spinner.sv-on {
+  opacity: 1;
+  animation: sv-spin 0.8s linear infinite;
+}
+
+@keyframes sv-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sv-retry {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.sv-progress {
+  height: 3px;
+  background: var(--sv-track);
+}
+
+.sv-progress-bar {
+  width: 0;
+  height: 100%;
+  background: var(--sv-accent);
+  transition: width 0.2s;
+}
+
+/* サムネイル列 */
+.sv-thumbs {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--sv-surface-2);
+  border-bottom: 1px solid var(--sv-border);
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+
+.sv-thumb {
+  flex: none;
+  height: 56px;
+  aspect-ratio: var(--sv-ratio);
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.sv-thumb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sv-thumb.sv-current {
+  outline: 2px solid var(--sv-accent);
+  outline-offset: 1px;
+}
+
+/* 操作バー */
+.sv-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 4px 6px;
+}
+
+.sv-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sv-muted);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.sv-prev,
+.sv-next {
+  color: var(--sv-text);
+}
+
+.sv-btn:hover {
+  background: var(--sv-accent-soft);
+}
+
+.sv-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: transparent;
+}
+
+.sv-btn:focus-visible {
+  outline: 2px solid var(--sv-accent);
+  outline-offset: -2px;
+}
+
+.sv-btn[aria-pressed="true"] {
+  background: var(--sv-accent-soft);
+  color: var(--sv-accent);
+}
+
+.sv-page {
+  min-width: 64px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-page span {
+  color: var(--sv-faint);
+}
+
+.sv-close {
+  display: none;
+}
+
+/* 全画面 */
+.sv-root.sv-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  background: #0b0b0d;
+  color-scheme: dark;
+  --sv-text: #f5f5f7;
+  --sv-muted: #d1d1d6;
+  --sv-faint: #a1a1a9;
+  --sv-accent: #4d9dff;
+  --sv-accent-soft: rgba(255, 255, 255, 0.12);
+  --sv-border: rgba(255, 255, 255, 0.1);
+  --sv-track: rgba(255, 255, 255, 0.1);
+  --sv-surface-2: rgba(28, 28, 33, 0.85);
+}
+
+.sv-root.sv-fs .sv-head {
+  display: none;
+}
+
+.sv-root.sv-fs .sv-card {
+  flex: 1;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sv-root.sv-fs .sv-stage {
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: auto;
+  background: transparent;
+}
+
+.sv-root.sv-fs .sv-close {
+  display: inline-flex;
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  border-radius: 22px;
+  background: rgba(28, 28, 33, 0.8);
+  color: #f5f5f7;
+}
+
+.sv-root.sv-fs .sv-full {
+  display: none;
+}
+
+.sv-root.sv-fs .sv-thumbs {
+  border: none;
+  justify-content: safe center;
+}
+
+.sv-root.sv-fs .sv-bar {
+  align-self: center;
+  margin: 8px 0 16px;
+  padding: 2px 6px;
+  border-radius: 26px;
+  background: rgba(28, 28, 33, 0.85);
+  gap: 8px;
+}
+
+/* 全画面でしばらく操作が無いとき（JS が .sv-idle を付ける） */
+.sv-root.sv-fs .sv-bar,
+.sv-root.sv-fs .sv-thumbs {
+  transition: opacity 0.3s;
+}
+
+.sv-root.sv-fs.sv-idle .sv-bar,
+.sv-root.sv-fs.sv-idle .sv-thumbs {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sv-root.sv-fs.sv-idle {
+  cursor: none;
+}
+
+/* × はポインタが上端に近いとき（.sv-top）だけ、上から降りてくる */
+.sv-root.sv-fs .sv-close {
+  opacity: 0;
+  transform: translateY(-24px);
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.25s ease-out;
+}
+
+.sv-root.sv-fs.sv-top .sv-close,
+.sv-root.sv-fs .sv-close:focus-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+html.sv-lock,
+html.sv-lock body {
+  overflow: hidden;
+}
+
+/* 狭い場所に置いたとき（画面幅ではなく、置いた場所の幅で切り替える） */
+@container sv (max-width: 420px) {
+  .sv-page {
+    min-width: 52px;
+    font-size: 13px;
+  }
+
+  .sv-thumb {
+    height: 44px;
+  }
+}
+
+/* 印刷でスライドを紙や PDF に書き出させない */
+@media print {
+  .sv-root .sv-stage,
+  .sv-root .sv-thumbs {
+    visibility: hidden;
+  }
+}

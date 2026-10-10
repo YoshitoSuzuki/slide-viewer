@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>slide-viewer デモ</title>
+<style>
+  /* 載せる側のページの CSS と干渉しないことを確かめるため、わざと強めの全体リセットを入れている */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  button { all: unset; }
+  canvas { border: 4px solid red; }
+
+  :root {
+    --bg: #f5f5f7;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --line: #dcdce1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b0b0d; --text: #f5f5f7; --muted: #a1a1a9; --line: #2a2a30; }
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.8;
+  }
+  main { padding: 48px 16px 96px; }
+  section { margin: 0 auto 72px; }
+  h1 { max-width: 760px; margin: 0 auto 48px; font-size: 28px; }
+  h2 { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 16px; }
+  .article { max-width: 760px; }
+  .article p { margin: 16px 0; color: var(--muted); }
+  .cols { max-width: 1040px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .cols .side { min-width: 0; }
+  .wide { max-width: 1280px; }
+  .pair { max-width: 1040px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .mount-btn { display: inline-block; padding: 10px 18px; border-radius: 10px; background: #0071e3; color: #fff; cursor: pointer; margin-bottom: 16px; }
+  .line { height: 10px; border-radius: 5px; background: var(--line); margin: 10px 0; }
+  @media (max-width: 760px) {
+    .cols, .pair { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>slide-viewer デモ</h1>
+
+  <section class="article">
+    <h2>記事の本文に置く（ダウンロード可の資料）</h2>
+    <div class="line" style="width: 92%"></div>
+    <div class="line" style="width: 76%"></div>
+    <p></p>
+    <div class="slide-viewer" data-deck="usage"></div>
+    <p></p>
+    <div class="line" style="width: 88%"></div>
+    <div class="line" style="width: 64%"></div>
+  </section>
+
+  <section class="cols">
+    <div>
+      <h2>2カラムの広い側（ダウンロード不可の資料・4:3）</h2>
+      <div class="slide-viewer" data-deck="locked"></div>
+    </div>
+    <div class="side">
+      <h2>狭い側（タイトル行なし）</h2>
+      <div class="slide-viewer" data-deck="usage" data-header="false" data-accent="#ff9500"></div>
+    </div>
+  </section>
+
+  <section class="wide">
+    <h2>全幅（サムネイルを開いた状態・ページ側でダウンロードを止める）</h2>
+    <div class="slide-viewer" data-deck="usage" data-thumbs="open" data-download="false" data-start="3"></div>
+  </section>
+
+  <section class="pair">
+    <div>
+      <h2>JS から後で載せる</h2>
+      <button class="mount-btn" id="mount" type="button">表示する</button>
+      <div id="later"></div>
+    </div>
+    <div>
+      <h2>存在しない資料</h2>
+      <div class="slide-viewer" data-deck="missing" data-header="false"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/slide-viewer/slide-viewer.js" defer></script>
+<script>
+  document.getElementById('mount').addEventListener('click', function () {
+    SlideViewer.mount(document.getElementById('later'), { deck: 'locked', thumbs: false });
+    this.remove();
+  });
+</script>
+</body>
+</html>
