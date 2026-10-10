@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>動画で全画面（試作）</title>
+<style>
+  /*
+   * iPhone の Safari で「本当の全画面」にできるのは <video> だけなので、
+   * スライドを描いた canvas の映像を video に流し、その video を全画面にする試作。
+   * 確かめたいこと: 全画面になるか / 全画面のままページを送れるか（どのボタンが効くか）
+   */
+  :root { color-scheme: light dark; --bg: #f5f5f7; --text: #1d1d1f; --muted: #6e6e73; --card: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b0b0d; --text: #f5f5f7; --muted: #a1a1a9; --card: #16161a; } }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; line-height: 1.6; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  /* ページ上の表示も video にする。iPhone は見えない（小さすぎる）動画の自動再生を止めるため */
+  #video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; }
+  #stage { display: none; }
+  .row { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  button { font: inherit; font-size: 16px; padding: 10px 16px; border-radius: 10px; border: 0; background: var(--card); color: var(--text); }
+  button.primary { background: #0071e3; color: #fff; }
+  #page { align-self: center; color: var(--muted); }
+  pre { background: var(--card); padding: 12px; border-radius: 10px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<main>
+  <h1>動画で全画面（試作）</h1>
+  <video id="video" muted playsinline autoplay></video>
+  <canvas id="stage" width="1600" height="900"></canvas>
+  <div class="row">
+    <button id="prev" type="button">‹ 前</button>
+    <span id="page"></span>
+    <button id="next" type="button">次 ›</button>
+  </div>
+  <div class="row">
+    <button id="fs" class="primary" type="button">動画で全画面</button>
+  </div>
+  <pre id="log"></pre>
+</main>
+<script>
+(function () {
+  'use strict';
+  var DECK = 'decks/usage/';
+  var canvas = document.getElementById('stage');
+  var ctx = canvas.getContext('2d');
+  var video = document.getElementById('video');
+  var logEl = document.getElementById('log');
+  var pages = 0, cur = 1, images = {}, fullscreen = false;
+
+  function log(msg) {
+    var t = new Date().toTimeString().slice(0, 8);
+    logEl.textContent = t + ' ' + msg + '\n' + logEl.textContent;
+  }
+
+  function image(p) {
+    if (!images[p]) {
+      images[p] = fetch(DECK + 'full/' + String(p).padStart(3, '0') + '.webp')
+        .then(function (r) { return r.blob(); })
+        .then(createImageBitmap);
+    }
+    return images[p];
+  }
+
+  // 現在のページを canvas に描く。全画面の動画にはページ番号も焼き込む（どのボタンでめくれたか見えるように）
+  var bitmap = null;
+  function draw() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (bitmap) ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    ctx.font = '600 36px -apple-system, sans-serif';
+    var label = cur + ' / ' + pages;
+    var w = ctx.measureText(label).width + 40;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(canvas.width - w - 24, canvas.height - 80, w, 56);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, canvas.width - w - 4, canvas.height - 40);
+  }
+
+  function go(p, why) {
+    if (!pages) return;
+    p = Math.min(Math.max(p, 1), pages);
+    cur = p;
+    document.getElementById('page').textContent = p + ' / ' + pages;
+    image(p).then(function (b) { if (cur === p) { bitmap = b; draw(); } });
+    if (why) log('ページ ' + p + '（' + why + '）');
+  }
+
+  // Safari の captureStream は、canvas が描き直されたときにだけ映像を送る。
+  // 止まった絵のままだと動画が真っ黒になることがあるので、ずっと描き直し続ける
+  function loop() { draw(); requestAnimationFrame(loop); }
+
+  document.getElementById('prev').onclick = function () { go(cur - 1, 'ページのボタン'); };
+  document.getElementById('next').onclick = function () { go(cur + 1, 'ページのボタン'); };
+
+  // 全画面の標準プレーヤーに出るかもしれない操作。どれが呼ばれたかを記録する
+  function setupMediaSession() {
+    if (!('mediaSession' in navigator)) { log('mediaSession: 使えない'); return; }
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: 'slide-viewer の使い方', artist: 'slide-viewer' });
+    } catch (e) { log('MediaMetadata: ' + e.message); }
+    var actions = {
+      nexttrack: function () { go(cur + 1, 'nexttrack'); },
+      previoustrack: function () { go(cur - 1, 'previoustrack'); },
+      seekforward: function () { go(cur + 1, 'seekforward'); },
+      seekbackward: function () { go(cur - 1, 'seekbackward'); },
+      play: function () { log('play が押された'); video.play(); },
+      pause: function () { log('pause が押された（一時停止はさせない）'); video.play(); }
+    };
+    Object.keys(actions).forEach(function (a) {
+      try { navigator.mediaSession.setActionHandler(a, actions[a]); }
+      catch (e) { log('setActionHandler(' + a + '): ' + e.message); }
+    });
+  }
+
+  function enterFullscreen() {
+    try {
+      if (video.webkitEnterFullscreen) {
+        video.webkitEnterFullscreen();
+        log('webkitEnterFullscreen を呼んだ（readyState=' + video.readyState + '）');
+      } else if (video.requestFullscreen) {
+        video.requestFullscreen().then(function () { log('requestFullscreen 成功'); }, function (e) { log('requestFullscreen 失敗: ' + e.message); });
+      } else {
+        log('video を全画面にする方法が無い');
+      }
+    } catch (e) {
+      log('全画面にできない: ' + e.name + ' ' + e.message);
+    }
+  }
+
+  document.getElementById('fs').onclick = function () {
+    if (video.readyState >= 1) { enterFullscreen(); return; }
+    // 自動再生が止められていたときは、ボタンを押したこの操作で再生を始め、映像の準備ができてから全画面にする
+    log('まだ再生されていないので、再生してから全画面にする（readyState=' + video.readyState + '）');
+    video.addEventListener('loadedmetadata', function () { enterFullscreen(); }, { once: true });
+    video.play().then(function () { log('video 再生中（readyState=' + video.readyState + '）'); },
+      function (e) { log('ボタンからも再生できない: ' + e.message); });
+  };
+
+  video.addEventListener('webkitbeginfullscreen', function () { fullscreen = true; log('全画面に入った'); });
+  video.addEventListener('webkitendfullscreen', function () { fullscreen = false; log('全画面を閉じた'); video.play(); });
+  video.addEventListener('pause', function () { log('video が止まった'); });
+  // 全画面のプレーヤーで時間のバーを動かされたときに備えて記録する
+  video.addEventListener('seeking', function () { log('seeking'); });
+
+  log('captureStream: ' + (canvas.captureStream ? 'あり' : 'なし') +
+    ' / webkitEnterFullscreen: ' + (video.webkitEnterFullscreen ? 'あり' : 'なし') +
+    ' / 要素の全画面: ' + (document.fullscreenEnabled ? 'あり' : 'なし') +
+    ' / ' + navigator.userAgent);
+
+  fetch(DECK + 'deck.json').then(function (r) { return r.json(); }).then(function (m) {
+    pages = m.pages;
+    go(1);
+    loop();
+    if (!canvas.captureStream) { log('この端末では canvas を映像にできない'); return; }
+    video.srcObject = canvas.captureStream(30);
+    video.play().then(function () { log('video 再生中（readyState=' + video.readyState + '）'); },
+      function (e) { log('video を再生できない: ' + e.message); });
+    setupMediaSession();
+  });
+})();
+</script>
+</body>
+</html>
