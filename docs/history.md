@@ -91,3 +91,16 @@
 - 全画面の間だけ `margin` と大きさの指定を `!important` で打ち消すようにした。あわせて、× と操作バーを
   iPhone の切り欠きやホームバーに重ならない位置（`env(safe-area-inset-*)`）にずらした
 - 確認: 幅390・高さ844の画面で、要素の全画面を使えない状態にして全画面ボタンを押し、ビューアが 390x844 になること
+
+## 2026-10-10 iPhone で「本当の全画面」を試してやめた
+
+- 動機: YouTube の動画のように、Safari のバーまで消える全画面にしたい（ユーザーの要望）
+- iPhone の Safari で本当の全画面にできるのは `<video>` だけ（iPad は普通の要素も全画面にできる）。
+  そこで、スライドを描いた canvas を `captureStream()` で video に流し、`webkitEnterFullscreen()` で全画面にする試作を作った
+  （ブランチ `test/video-fullscreen` の `demo/video-fullscreen.html`。main には入れていない）
+- iPhone（iOS 18 系の Safari）で試した結果
+  - 全画面には**なった**
+  - 全画面の中では**ページを送れなかった**。Media Session の `nexttrack` / `previoustrack` / `seekforward` / `seekbackward` を
+    用意しても、標準プレーヤーからはどれも呼ばれず、出るのは再生・一時停止だけだった（押すと動画が止まる）
+  - 最初の試作では video を 2px で隠していたため、自動再生を止められて全画面にできなかった。見えない動画の自動再生は許可されない
+- 結論: スライドを見る道具としては使えないので採用しない。iPhone では今の「画面いっぱいに重ねる」方式のまま、横向きで見てもらう
